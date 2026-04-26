@@ -1,0 +1,14 @@
+README.md
+pyproject.toml
+src/openai2claude/__init__.py
+src/openai2claude/cli.py
+src/openai2claude/config.py
+src/openai2claude/proxy.py
+src/openai2claude.egg-info/PKG-INFO
+src/openai2claude.egg-info/SOURCES.txt
+src/openai2claude.egg-info/dependency_links.txt
+src/openai2claude.egg-info/entry_points.txt
+src/openai2claude.egg-info/requires.txt
+src/openai2claude.egg-info/top_level.txt
+tests/test_api.py
+tests/test_convert.py

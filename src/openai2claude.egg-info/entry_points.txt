@@ -1,0 +1,2 @@
+[console_scripts]
+openai2claude = openai2claude.cli:main
