@@ -20,10 +20,13 @@ def app():
 
 @pytest.fixture
 async def client(app):
-    """Create async test client."""
+    """Create async test client with initialized http_client."""
+    # Manually initialize the http_client since lifespan isn't triggered in test
+    app.state.http_client = AsyncMock()
+
     transport = ASGITransport(app=app)
-    async with AsyncClient(transport=transport, base_url="http://test") as client:
-        yield client
+    async with AsyncClient(transport=transport, base_url="http://test") as ac:
+        yield ac
 
 
 class TestHealthEndpoint:
@@ -48,7 +51,6 @@ class TestProxyEndpoint:
 
     async def test_proxy_non_streaming(self, client, app):
         """Test non-streaming proxy."""
-        # Mock the upstream response
         mock_response = MagicMock()
         mock_response.status_code = 200
         mock_response.json.return_value = {
@@ -64,24 +66,22 @@ class TestProxyEndpoint:
             "usage": {"prompt_tokens": 10, "completion_tokens": 5}
         }
 
-        # Mock the HTTP client
-        with patch.object(app.state, 'http_client') as mock_client:
-            mock_client.post.return_value = mock_response
+        app.state.http_client.post.return_value = mock_response
 
-            response = await client.post(
-                "/v1/messages",
-                json={
-                    "model": "claude-sonnet-4-20250514",
-                    "messages": [{"role": "user", "content": "Hi"}]
-                }
-            )
+        response = await client.post(
+            "/v1/messages",
+            json={
+                "model": "claude-sonnet-4-20250514",
+                "messages": [{"role": "user", "content": "Hi"}]
+            }
+        )
 
-            assert response.status_code == 200
-            data = response.json()
-            assert data["type"] == "message"
-            assert data["role"] == "assistant"
-            assert len(data["content"]) == 1
-            assert data["content"][0]["text"] == "Hello!"
+        assert response.status_code == 200
+        data = response.json()
+        assert data["type"] == "message"
+        assert data["role"] == "assistant"
+        assert len(data["content"]) == 1
+        assert data["content"][0]["text"] == "Hello!"
 
     async def test_proxy_with_tools(self, client, app):
         """Test proxy with tool calls."""
@@ -109,32 +109,31 @@ class TestProxyEndpoint:
             "usage": {"prompt_tokens": 10, "completion_tokens": 5}
         }
 
-        with patch.object(app.state, 'http_client') as mock_client:
-            mock_client.post.return_value = mock_response
+        app.state.http_client.post.return_value = mock_response
 
-            response = await client.post(
-                "/v1/messages",
-                json={
-                    "model": "claude-sonnet-4-20250514",
-                    "messages": [{"role": "user", "content": "List files"}],
-                    "tools": [
-                        {
-                            "name": "Bash",
-                            "description": "Run bash",
-                            "input_schema": {
-                                "type": "object",
-                                "properties": {"command": {"type": "string"}}
-                            }
+        response = await client.post(
+            "/v1/messages",
+            json={
+                "model": "claude-sonnet-4-20250514",
+                "messages": [{"role": "user", "content": "List files"}],
+                "tools": [
+                    {
+                        "name": "Bash",
+                        "description": "Run bash",
+                        "input_schema": {
+                            "type": "object",
+                            "properties": {"command": {"type": "string"}}
                         }
-                    ]
-                }
-            )
+                    }
+                ]
+            }
+        )
 
-            assert response.status_code == 200
-            data = response.json()
-            assert len(data["content"]) == 1
-            assert data["content"][0]["type"] == "tool_use"
-            assert data["content"][0]["name"] == "Bash"
+        assert response.status_code == 200
+        data = response.json()
+        assert len(data["content"]) == 1
+        assert data["content"][0]["type"] == "tool_use"
+        assert data["content"][0]["name"] == "Bash"
 
     async def test_proxy_invalid_json(self, client):
         """Test proxy with invalid JSON."""
@@ -151,19 +150,18 @@ class TestProxyEndpoint:
         mock_response.status_code = 500
         mock_response.json.return_value = {"error": "Internal error"}
 
-        with patch.object(app.state, 'http_client') as mock_client:
-            mock_client.post.return_value = mock_response
+        app.state.http_client.post.return_value = mock_response
 
-            response = await client.post(
-                "/v1/messages",
-                json={
-                    "model": "claude-sonnet-4-20250514",
-                    "messages": [{"role": "user", "content": "Hi"}]
-                }
-            )
+        response = await client.post(
+            "/v1/messages",
+            json={
+                "model": "claude-sonnet-4-20250514",
+                "messages": [{"role": "user", "content": "Hi"}]
+            }
+        )
 
-            # Should return the error from upstream
-            assert response.status_code == 500
+        # Should return the error from upstream
+        assert response.status_code == 500
 
     async def test_proxy_system_prompt_injection(self, client, app):
         """Test that system prompt gets tool instruction injected."""
@@ -182,25 +180,24 @@ class TestProxyEndpoint:
             }
             return mock_resp
 
-        with patch.object(app.state, 'http_client') as mock_client:
-            mock_client.post.side_effect = capture_post
+        app.state.http_client.post.side_effect = capture_post
 
-            response = await client.post(
-                "/v1/messages",
-                json={
-                    "model": "claude-sonnet-4-20250514",
-                    "messages": [{"role": "user", "content": "Hi"}]
-                }
-            )
+        response = await client.post(
+            "/v1/messages",
+            json={
+                "model": "claude-sonnet-4-20250514",
+                "messages": [{"role": "user", "content": "Hi"}]
+            }
+        )
 
-            assert response.status_code == 200
-            # System prompt should be injected
-            assert captured_payload is not None
-            messages = captured_payload["messages"]
-            system_msg = messages[0]
-            assert system_msg["role"] == "system"
-            assert "Bash" in system_msg["content"]
-            assert "command" in system_msg["content"]
+        assert response.status_code == 200
+        # System prompt should be injected
+        assert captured_payload is not None
+        messages = captured_payload["messages"]
+        system_msg = messages[0]
+        assert system_msg["role"] == "system"
+        assert "Bash" in system_msg["content"]
+        assert "command" in system_msg["content"]
 
 
 class TestConfigEnvVars:
