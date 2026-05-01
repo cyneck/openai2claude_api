@@ -7,16 +7,15 @@ name = "openai2claude"
 version = "0.1.0"
 description = "Proxy Claude API requests to OpenAI-compatible backends"
 readme = "README.md"
-license = {text = "MIT"}
+license = "MIT"
 requires-python = ">=3.9"
 authors = [
-    {name = "Your Name", email = "your@email.com"}
+    {name = "cyneck", email = "cyneck@hotmail.com"}
 ]
 keywords = ["claude", "openai", "proxy", "api"]
 classifiers = [
     "Development Status :: 3 - Alpha",
     "Intended Audience :: Developers",
-    "License :: OSI Approved :: MIT License",
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3.9",
     "Programming Language :: Python :: 3.10",
@@ -42,8 +41,8 @@ dev = [
 openai2claude = "openai2claude.cli:main"
 
 [project.urls]
-Homepage = "https://github.com/yourname/openai2claude"
-Repository = "https://github.com/yourname/openai2claude"
+Homepage = "https://github.com/cyneck/openai2claude_api"
+Repository = "https://github.com/cyneck/openai2claude_api"
 
 [tool.setuptools.packages.find]
 where = ["src"]
